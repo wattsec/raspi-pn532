@@ -1,9 +1,35 @@
 package mk.hsilomedus.pn532;
-public class Main {
 
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class PN532Test {
+	
 	static final byte PN532_MIFARE_ISO14443A = 0x00;
 
-	public static void main(String[] args) throws InterruptedException {
+	@BeforeAll
+	static void setUpBeforeClass() throws Exception {
+	}
+
+	@AfterAll
+	static void tearDownAfterClass() throws Exception {
+	}
+
+	@BeforeEach
+	void setUp() throws Exception {
+	}
+
+	@AfterEach
+	void tearDown() throws Exception {
+	}
+
+	@Test
+	void test() {
 //		IPN532Interface pn532Interface = new PN532Spi();
 	  IPN532Interface pn532Interface = new PN532I2C();
 		PN532 nfc = new PN532(pn532Interface);
@@ -55,4 +81,5 @@ public class Main {
 		}
 
 	}
+
 }
