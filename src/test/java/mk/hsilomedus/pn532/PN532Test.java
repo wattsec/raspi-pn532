@@ -30,6 +30,7 @@ class PN532Test {
 
 	@Test
 	void test() {
+		try {
 //		IPN532Interface pn532Interface = new PN532Spi();
 	  IPN532Interface pn532Interface = new PN532I2C();
 		PN532 nfc = new PN532(pn532Interface);
@@ -60,8 +61,9 @@ class PN532Test {
 
 		byte[] buffer = new byte[8];
 		while (true) {
-			int readLength = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A,
-					buffer);
+			buffer = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A);
+			
+			int readLength = buffer.length;
 
 			if (readLength > 0) {
 				System.out.println("Found an ISO14443A card");
@@ -79,7 +81,9 @@ class PN532Test {
 
 			Thread.sleep(100);
 		}
-
+		} catch (Exception e) {
+			
+		}
 	}
 
 }

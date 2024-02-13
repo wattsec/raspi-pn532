@@ -1,9 +1,16 @@
 package mk.hsilomedus.pn532;
+
+import java.io.IOException;
+
+import com.pi4j.Pi4J;
 import com.pi4j.io.serial.Serial;
-import com.pi4j.io.serial.SerialFactory;
+import com.pi4j.io.serial.SerialProvider;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Deprecated
-public class PN532Serial implements IPN532Interface {
+@Slf4j
+public class PN532SerialPi implements IPN532Interface {
 
 	final static int PN532_ACK_WAIT_TIME = 10; // ms, timeout of waiting for ACK
 
@@ -15,18 +22,18 @@ public class PN532Serial implements IPN532Interface {
 	Serial serial;
 	byte command;
 
-	public PN532Serial() {
-		serial = SerialFactory.createInstance();
+	public PN532SerialPi() {
+		//serial = SerialFactory.createInstance();
 	}
 	
 	private void writeAndLog(byte toSend) {
 		serial.write(toSend);
-		System.out.println("Sent " + Integer.toHexString(toSend));
+		log.debug("Sent " + Integer.toHexString(toSend));
 	}
 	
 	private void writeAndLog(byte[] toSend) {
 		serial.write(toSend);
-		System.out.println("Sent " + getByteString(toSend));
+		log.debug("Sent " + getByteString(toSend));
 		
 	}
 	
@@ -43,8 +50,30 @@ public class PN532Serial implements IPN532Interface {
 	 */
 	@Override
 	public void begin() {
-		System.out.println("Medium.begin()");
-		serial.open(Serial.DEFAULT_COM_PORT, 115200);
+		//log.debug("Medium.begin()");
+		//serial.open(Serial.DEFAULT_COM_PORT, 115200);
+		
+        // Initialize Pi4J with an auto context
+        // An auto context includes AUTO-DETECT BINDINGS enabled
+        // which will load all detected Pi4J extension libraries
+        // (Platforms and Providers) in the class path
+        var pi4j = Pi4J.newAutoContext();
+
+        // create SERIAL config
+        var config  = Serial.newConfigBuilder(pi4j)
+                .id("my-serial-port")
+                .name("My Serial Port")
+                .device("/dev/ttyS0")
+                .use_9600_N81()
+                .build();
+
+        // get a serial I/O provider from the Pi4J context
+        SerialProvider serialProvider = pi4j.provider("pigpio-serial");
+
+        // use try-with-resources to auto-close SERIAL when complete
+        serial = serialProvider.create(config);
+        	
+        serial.open();
 
 	}
 
@@ -53,19 +82,19 @@ public class PN532Serial implements IPN532Interface {
 	 */
 	@Override
 	public void wakeup() {
-		System.out.println("Medium.wakeup()");
+		log.debug("Medium.wakeup()");
 		writeAndLog((byte) 0x55);
 		writeAndLog((byte) 0x55);
 		writeAndLog((byte) 0x00);
 		writeAndLog((byte) 0x00);
 		writeAndLog((byte) 0x00);
-		serial.flush();
+		//serial.flush();
 		dumpSerialBuffer();
 	}
 
 	private void dumpSerialBuffer() {
-		System.out.println("Medium.dumpSerialBuffer()");
-		while (serial.availableBytes() > 0) {
+		log.debug("Medium.dumpSerialBuffer()");
+		while (serial.available() > 0) {
 			System.out.println("Dumping byte");
 			serial.read();
 		}
@@ -76,7 +105,7 @@ public class PN532Serial implements IPN532Interface {
 	 */
 	@Override
 	public CommandStatus writeCommand(byte[] header, byte[] body) throws InterruptedException {
-		System.out.println("Medium.writeCommand(" + header + " " + (body != null ? body : "") + ")");
+		log.debug("Medium.writeCommand(" + header + " " + (body != null ? body : "") + ")");
 		dumpSerialBuffer();
 
 		command = header[0];
@@ -108,7 +137,7 @@ public class PN532Serial implements IPN532Interface {
 		int checksum = (~sum) + 1;
 		writeAndLog((byte) checksum);
 		writeAndLog(PN532_POSTAMBLE);
-		serial.flush();
+		//serial.flush();
 		return readAckFrame();
 	}
 
@@ -125,7 +154,7 @@ public class PN532Serial implements IPN532Interface {
 	 */
 	@Override
 	public int readResponse(byte[] buffer, int expectedLength, int timeout) throws InterruptedException {
-		System.out.println("Medium.readResponse(..., " + expectedLength + ", " + timeout + ")");
+		log.debug("Medium.readResponse(..., " + expectedLength + ", " + timeout + ")");
 		byte[] tmp = new byte[3];
 		if (receive(tmp, 3, timeout) <= 0) {
 			return PN532_TIMEOUT;
@@ -185,7 +214,7 @@ public class PN532Serial implements IPN532Interface {
 	}
 
 	CommandStatus readAckFrame() throws InterruptedException {
-		System.out.println("Medium.readAckFrame()");
+		log.debug("Medium.readAckFrame()");
 		// see what's all the fuzz about these
 		byte PN532_ACK[] = new byte[] { 0, 0, (byte) 0xFF, 0, (byte) 0xFF, 0 };
 		byte ackBuf[] = new byte[PN532_ACK.length];
@@ -205,7 +234,7 @@ public class PN532Serial implements IPN532Interface {
 
 	int receive(byte[] buffer, int expectedLength, int timeout) throws InterruptedException {
 //		Thread.sleep(100);
-		System.out.println("Medium.receive(..., " + expectedLength + ", " + timeout + ")");
+		log.debug("Medium.receive(..., " + expectedLength + ", " + timeout + ")");
 		int read_bytes = 0;
 		int ret;
 		long start_millis;
@@ -213,7 +242,7 @@ public class PN532Serial implements IPN532Interface {
 		while (read_bytes < expectedLength) {
 			start_millis = System.currentTimeMillis();
 			do {
-				if (serial.availableBytes() == 0) {
+				if (serial.available() == 0) {
 					ret = -1;
 					Thread.sleep(10);
 				} else {
@@ -226,7 +255,7 @@ public class PN532Serial implements IPN532Interface {
 
 			if (ret < 0) {
 				if (read_bytes > 0) {
-					System.out.println("Read total of " + read_bytes + " bytes.");
+					log.debug("Read total of " + read_bytes + " bytes.");
 					return read_bytes;
 				} else {
 					System.out.println("Timeout while reading.");
@@ -234,7 +263,7 @@ public class PN532Serial implements IPN532Interface {
 				}
 			}
 			buffer[read_bytes] = (byte) ret;
-			System.out.println("Read: " + Integer.toHexString(ret));
+			log.debug("Read: " + Integer.toHexString(ret));
 			read_bytes++;
 		}
 		return read_bytes;
@@ -242,6 +271,18 @@ public class PN532Serial implements IPN532Interface {
 
 	int receive(byte[] buffer, int expectedLength) throws InterruptedException {
 		return receive(buffer, expectedLength, 2000);
+	}
+
+	@Override
+	public void sendAck() throws IllegalStateException, IOException {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public int getOffsetBytes() {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 
 }

@@ -15,29 +15,34 @@ public class Pn532Thread extends Thread {
 	}
 
 	private Pn532ThreadListener listener;
-	private boolean uart;
+	private PN532Constant.Channel channel;
 
-	public Pn532Thread(Pn532ThreadListener listener, boolean uart) {
+	public Pn532Thread(Pn532ThreadListener listener, PN532Constant.Channel channel) {
 		this.listener = listener;
-		this.uart = uart;
+		this.channel = channel;
 	}
 
 	private String getChannelString() {
-		if (uart) {
-			return "UART";
-		} else {
-			return "I2C";
-		}
+		return (channel == null)?null:channel.toString();
 	}
 
 	@Override
 	public void run() {
 		IPN532Interface pn532Interface;
-		if (uart) {
-			pn532Interface = new PN532Serial();
-		} else {
-			pn532Interface = new PN532I2C();
+		pn532Interface = switch (channel) {
+		case UART: {
+			yield new PN532SerialPi();
 		}
+		case I2C: {
+			yield new PN532I2C();
+		}
+		case SERIAL: {
+			yield new PN532SerialPort();
+		}
+		default:
+			throw new IllegalArgumentException("Unexpected value: " + channel);
+		};
+
 		PN532 pn532 = new PN532(pn532Interface);
 
 		try {

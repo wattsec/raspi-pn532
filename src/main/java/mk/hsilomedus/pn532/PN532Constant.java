@@ -2,6 +2,81 @@ package mk.hsilomedus.pn532;
 
 public class PN532Constant {
 	
+	public static enum Channel {
+		UART, I2C, SERIAL
+	}
+	
+	public static enum Key {
+		A, B
+	}
+	
+	public static enum TagType {
+		/**
+		 * Unkown tag
+		 */
+		UKNOWN, IN_MEMORY,
+		/**
+		 * Mifare Classic with 1k memory
+		 */
+		MIFARE_CLASSIC_1K,
+		/**
+		 * Mifare Classic with 4k memory
+		 */
+		MIFARE_CLASSIC_4K, MIFARE_ULTRALIGHT, MIFARE_MINI, TOPAZ_JEWEL, FELICA_212K, FELICA_424K,
+		/**
+		 * Tag with NFCIP (P2P) capabilities
+		 */
+		NFCIP;
+	}
+	
+	public static class KeyValue {
+
+		private Key key;
+		private byte[] keyValue;
+
+		public KeyValue(Key key, byte[] keyValue) {
+			this.key = key;
+			this.keyValue = keyValue;
+		}
+
+		public Key getKey() {
+			return key;
+		}
+
+		public byte[] getKeyValue() {
+			return keyValue;
+		}
+
+	}
+	
+	public static class Tag {
+
+		private TagType tagType;
+		private byte[] generalBytes;
+
+		public Tag(TagType tagType, byte[] generalBytes) {
+			this.tagType = tagType;
+			this.generalBytes = generalBytes;
+		}
+
+		public byte[] getGeneralBytes() {
+			return generalBytes;
+		}
+
+		public TagType getTagType() {
+			return tagType;
+		}
+
+		public byte[] getId() {
+			throw new RuntimeException("not implemented yet");
+		}
+
+		@Override
+		public String toString() {
+			return super.toString() + " - " + tagType;
+		}
+	}
+	
 	public static final int    PN532_SERIAL_BAUD = 115200;
 	public static final int    PN532_SERIAL_DATA = 8;
 	public static final String PN532_SERIAL_PARITY = "NONE";
@@ -127,4 +202,29 @@ public class PN532Constant {
 	public static final byte FELICA_WRITE_MAX_SERVICE_NUM =       16;
 	public static final byte FELICA_WRITE_MAX_BLOCK_NUM =         10; // for typical FeliCa card
 	public static final byte FELICA_REQ_SERVICE_MAX_NODE_NUM =    32;	
+	
+	public static String toStringHex(byte src) {
+		return toStringHex(new byte[] {src});
+	}
+	
+	public static String toStringHex(byte[] src) {
+		return (src==null)?null:toStringHex(src, 0, src.length, false);
+	}
+	
+	public static String toStringHex(byte[] src, int offset, int length, boolean pretty) {
+		if (src == null) {
+			return null;
+		}
+		
+		String answer = "";
+		int last = Math.min(offset + length, src.length);
+		for (int i = offset; i < last; i++) {
+			answer = answer + String.format("%02X", src[i]);
+		}
+		if (pretty) {
+			return answer.replaceAll("..(?!$)", "$0:");
+		} else {
+			return answer;
+		}
+	}
 }
